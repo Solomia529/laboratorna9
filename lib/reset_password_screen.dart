@@ -8,7 +8,9 @@ class ResetPasswordScreen extends StatefulWidget {
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
+  final RegExp _emailRegExp = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
 
   void _showMessage(String message) {
     showDialog(
@@ -18,10 +20,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           title: const Text('Повідомлення'),
           content: Text(message),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
-            ),
+            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
           ],
         );
       },
@@ -29,12 +28,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   void _sendResetEmail() {
-    final email = _emailController.text.trim();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    if (email.isEmpty) {
-      _showMessage("Введіть свій email");
-      return;
-    }
+    final email = _emailController.text.trim();
     _showMessage("Лист надіслано на $email");
   }
 
@@ -52,108 +48,108 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  "assets/images/logo.png",
-                  width: 120,
-                  height: 120,
-                  errorBuilder: (ctx, err, st) => const Icon(
-                    Icons.image_not_supported,
-                    size: 80,
-                    color: Colors.white70,
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                const Text(
-                  "turtle",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 34,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                const Text(
-                  "Відновлення пароля",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                const Text(
-                  "Введіть email і ми надішлемо вам\nпосилання для відновлення пароля.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                TextField(
-                  controller: _emailController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: "Email",
-                    hintStyle: const TextStyle(color: Colors.white70),
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.15),
-                    prefixIcon:
-                    const Icon(Icons.email_outlined, color: Colors.white),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    "assets/images/logo.png",
+                    width: 120,
+                    height: 120,
+                    errorBuilder: (ctx, err, st) => const Icon(
+                      Icons.image_not_supported,
+                      size: 80,
+                      color: Colors.white70,
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 25),
+                  const SizedBox(height: 20),
 
-                ElevatedButton(
-                  onPressed: _sendResetEmail,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF064E3B),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    "Надіслати",
+                  const Text(
+                    "turtle",
                     style: TextStyle(
-                      fontSize: 16,
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  const Text(
+                    "Відновлення пароля",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 10),
 
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    "Назад",
+                  const Text(
+                    "Введіть email і ми надішлемо вам\nпосилання для відновлення пароля.",
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 16,
+                      fontSize: 14,
                     ),
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 30),
+
+                  TextFormField(
+                    controller: _emailController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: "Email",
+                      hintStyle: const TextStyle(color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.15),
+                      prefixIcon: const Icon(Icons.email_outlined, color: Colors.white),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) return 'Введіть свій email';
+                      if (!_emailRegExp.hasMatch(value.trim())) return 'Невірний формат email';
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  ElevatedButton(
+                    onPressed: _sendResetEmail,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF064E3B),
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      "Надіслати",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      "Назад",
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
