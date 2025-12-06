@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -9,30 +10,10 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _emailController = TextEditingController();
-  final RegExp _emailRegExp = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+  final _emailController = TextEditingController();
+  final ApiService _apiService = ApiService();
 
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: const Text('Повідомлення'),
-          content: Text(message),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
-          ],
-        );
-      },
-    );
-  }
-
-  void _sendResetEmail() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-
-    final email = _emailController.text.trim();
-    _showMessage("Лист надіслано на $email");
-  }
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -40,116 +21,84 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
+  Future<void> _handleReset() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.sendAuthData(
+        path: '/reset',
+        data: {
+          'action': 'reset',
+          'email': _emailController.text.trim(),
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset request sent!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // ❌ НЕ повертаємось на Login
+      // Navigator.pop();  <-- видалено
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B551F),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    "assets/images/logo.png",
-                    width: 120,
-                    height: 120,
-                    errorBuilder: (ctx, err, st) => const Icon(
-                      Icons.image_not_supported,
-                      size: 80,
-                      color: Colors.white70,
-                    ),
+      appBar: AppBar(
+        title: const Text('Reset password'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.refresh, size: 64),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    "turtle",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Enter email';
+                    if (!value.contains('@')) return 'Invalid email';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleReset,
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('Reset password'),
                   ),
-
-                  const SizedBox(height: 40),
-
-                  const Text(
-                    "Відновлення пароля",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  const Text(
-                    "Введіть email і ми надішлемо вам\nпосилання для відновлення пароля.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  TextFormField(
-                    controller: _emailController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "Email",
-                      hintStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.15),
-                      prefixIcon: const Icon(Icons.email_outlined, color: Colors.white),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Введіть свій email';
-                      if (!_emailRegExp.hasMatch(value.trim())) return 'Невірний формат email';
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  ElevatedButton(
-                    onPressed: _sendResetEmail,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF064E3B),
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: const Text(
-                      "Надіслати",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      "Назад",
-                      style: TextStyle(color: Colors.white70, fontSize: 16),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

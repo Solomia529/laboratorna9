@@ -1,144 +1,141 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 
-class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  bool agreeToTerms = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
+  final ApiService _apiService = ApiService();
 
-  final RegExp _emailRegExp = RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$");
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
   }
 
-  void _showMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext ctx) {
-        return AlertDialog(
-          title: const Text('Повідомлення'),
-          content: Text(message),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
-          ],
-        );
-      },
-    );
-  }
-
-  void _onSignup() {
+  Future<void> _handleSignUp() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!agreeToTerms) {
-      _showMessage('Потрібно погодитись з умовами');
-      return;
-    }
 
-    _showMessage("Користувача ${nameController.text} зареєстровано");
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.sendAuthData(
+        path: '/signup',
+        data: {
+          'action': 'signup',
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+          'confirmPassword': _confirmController.text,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // ❌ НЕ повертаємось на Login
+      // Navigator.pop();  <-- видалено
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Реєстрація')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-        child: Column(
-          children: [
-            const Text(
-              'Створення акаунту',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+      appBar: AppBar(
+        title: const Text('Sign up'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_add, size: 64),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Enter email';
+                    if (!value.contains('@')) return 'Invalid email';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Enter password';
+                    if (value.length < 6) return 'Min 6 characters';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm password',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleSignUp,
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('Sign up'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
-
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Ім\'я користувача',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Поле обов\'язкове';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Логін (email)',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) return 'Поле обов\'язкове';
-                      if (!_emailRegExp.hasMatch(value.trim())) return 'Невірний формат email';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Пароль',
-                      prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Поле обов\'язкове';
-                      if (value.length < 7) return 'Пароль має бути мінімум 7 символів';
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: agreeToTerms,
-                        onChanged: (v) => setState(() => agreeToTerms = v ?? false),
-                      ),
-                      const Expanded(
-                        child: Text('Я погоджуюсь з умовами використання сервісу'),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: _onSignup,
-                    child: const SizedBox(width: double.infinity, child: Center(child: Text('Зареєструватися'))),
-                  ),
-
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const SizedBox(width: double.infinity, child: Center(child: Text('Повернутися до входу'))),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
